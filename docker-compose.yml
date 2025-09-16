@@ -1,0 +1,10 @@
+services:
+  bot:
+    build: .
+    container_name: notifier_bot
+    restart: unless-stopped
+    command: python main.py
+    volumes:
+      - ./bot:/app
+    env_file:
+      - .env

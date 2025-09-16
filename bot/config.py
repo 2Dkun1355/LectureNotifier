@@ -1,0 +1,27 @@
+import os
+from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SCHEDULE_URL = os.environ.get("SCHEDULE_URL")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+
+now = datetime.now()
+
+TODAY_SCHEDULE_HOUR = 8
+TODAY_SCHEDULE_MINUTE = 30
+TODAY_SCHEDULE_DAYS = "0-4"
+
+WEEK_SCHEDULE_HOUR = 20
+WEEK_SCHEDULE_MINUTE = 0
+WEEK_SCHEDULE_DAY = "6"
+
+REMINDERS_HOUR = 7
+REMINDERS_MINUTE = 0
+REMINDERS_DAY = "0-4"
+REMINDER_BEFORE_MINUTES = 10
+
+UPDATE_HOUR = 23
+UPDATE_MINUTE = 59
+UPDATE_DAYS = "*"
