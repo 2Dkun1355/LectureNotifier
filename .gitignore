@@ -21,4 +21,4 @@ Thumbs.db
 *.log
 docker-compose.override.yml
 
-bot/chat_subscriptions.json
+bot_old/chat_subscriptions.json

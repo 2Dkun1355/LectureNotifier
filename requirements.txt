@@ -3,3 +3,5 @@ python-dotenv
 loguru
 aiogram
 apscheduler
+sqlalchemy
+aiosqlite
