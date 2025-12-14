@@ -12,6 +12,20 @@ class ScheduleService:
             5: "Пʼятниця", 6: "Субота", 7: "Неділя"}
     WEEK_MAP = {"numerator": "чис.", "denominator": "знам."}
 
+    def __init__(self):
+        self._cache: dict[str, list] = {}
+
+    async def load_cache(self):
+        """Завантажує всі уроки з БД у пам'ять."""
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(select(Lesson).options(selectinload(Lesson.group)))
+            lessons = result.scalars().all()
+
+        self._cache.clear()
+        for lesson in lessons:
+            group_name = lesson.group.name
+            self._cache.setdefault(group_name, []).append(lesson)
+
     async def format_lesson(self, lesson: Lesson) -> str:
         """Форматує урок у рядок для Telegram."""
         return (
@@ -21,69 +35,30 @@ class ScheduleService:
             f"{lesson.room or '-'}"
         )
 
-    async def today_schedule(self, chat_id: int, week_type: str = "denominator") -> str:
-        """Повертає текст розкладу на сьогодні для чату за week_type."""
+    async def today_schedule(self, group_name, week_type: str = "numerator") -> str:
         weekday = datetime.today().isoweekday()
-
-        async with AsyncSessionLocal() as session:
-            result = await session.execute(
-                select(Subscription)
-                .where(Subscription.chat_id == chat_id)
-                .options(selectinload(Subscription.group))
-            )
-            subscription = result.scalars().first()
-
-            group = subscription.group
-
-            result = await session.execute(
-                select(Lesson)
-                .where(
-                    Lesson.group_id == group.id,
-                    Lesson.week_day == weekday,
-                    Lesson.week_type == week_type
-                )
-                .order_by(Lesson.lesson_number)
-            )
-            lessons = result.scalars().all()
+        lessons = [
+            lesson for lesson in self._cache.get(group_name, [])
+            if lesson.week_day == weekday and lesson.week_type == week_type
+        ]
 
         if not lessons:
-            return f"Сьогодні немає занять."
+            return "😱 Сьогодні немає занять."
 
         formatted = [f"Розклад на сьогодні:\n"]
         formatted += [await self.format_lesson(lesson) for lesson in lessons]
         return "\n".join(formatted)
 
-    async def week_schedule(self, chat_id: int, week_type: str = "denominator") -> str:
-        """Повертає текстовий розклад на тиждень для чату за week_type."""
-        async with AsyncSessionLocal() as session:
-            result = await session.execute(
-                select(Subscription)
-                .where(Subscription.chat_id == chat_id)
-                .options(selectinload(Subscription.group))
-            )
-            subscription = result.scalars().first()
-
-            group = subscription.group
-
-            result = await session.execute(
-                select(Lesson)
-                .where(
-                    Lesson.group_id == group.id,
-                    Lesson.week_type == week_type
-                )
-                .order_by(Lesson.week_day, Lesson.lesson_number)
-            )
-            lessons = result.scalars().all()
-
+    async def week_schedule(self, group_name, week_type: str = "numerator") -> str:
+        lessons = [l for l in self._cache.get(group_name, []) if l.week_type == week_type]
         if not lessons:
-            return "Немає занять."
+            return "😁 На цей тиждень немає занять."
 
         output = [f"Розклад на тиждень:"]
         current_day = None
-        for lesson in lessons:
+        for lesson in sorted(lessons, key=lambda lesson: (lesson.week_day, lesson.lesson_number)):
             if current_day != lesson.week_day:
                 current_day = lesson.week_day
                 output.append(f"\n{self.DAYS.get(current_day)}:\n")
             output.append(await self.format_lesson(lesson))
-
         return "\n".join(output)

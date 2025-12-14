@@ -20,6 +20,7 @@ class Subscription(Base):
 
     chat_id = Column(Integer, primary_key=True)
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
+    week_type = Column(String, nullable=False, default="numerator")
     group = relationship("Group", back_populates="subscriptions")
 
 

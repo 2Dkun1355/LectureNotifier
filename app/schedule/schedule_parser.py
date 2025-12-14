@@ -84,34 +84,60 @@ class ScheduleParser:
         return group
 
     async def process_group(self, df: pd.DataFrame, group_name: str, room_columns: dict, session):
-        """Повністю перезаписує уроки для однієї групи."""
+        """Синхронізує уроки однієї групи з CSV."""
         group = await self.get_or_create_group(session, group_name)
         room_column = room_columns.get(group_name)
 
-        await session.execute(delete(Lesson).where(Lesson.group_id == group.id))
-
-        lessons_to_add = []
+        csv_lessons = []
         row_index = 0
         while row_index < len(df) - 1:
             lesson_data = self.parse_lesson_row(df, row_index, group_name, room_column)
             if lesson_data:
-                lessons_to_add.append(Lesson(group_id=group.id, **lesson_data))
+                csv_lessons.append(lesson_data)
                 row_index += 2
             else:
                 row_index += 1
 
-        if lessons_to_add:
-            session.add_all(lessons_to_add)
+        result = await session.execute(select(Lesson).where(Lesson.group_id == group.id))
+        db_lessons = {(l.week_day, l.lesson_number, l.week_type): l for l in result.scalars().all()}
+
+        csv_keys = {(l["week_day"], l["lesson_number"], l["week_type"]) for l in csv_lessons}
+        for key, db_lesson in db_lessons.items():
+            if key not in csv_keys:
+                await session.delete(db_lesson)
+
+        for lesson_data in csv_lessons:
+            key = (lesson_data["week_day"], lesson_data["lesson_number"], lesson_data["week_type"])
+            db_lesson = db_lessons.get(key)
+            if db_lesson:
+                changed = any(
+                    getattr(db_lesson, field) != lesson_data[field]
+                    for field in ["start_time", "end_time", "subject", "teacher", "room"]
+                )
+                if changed:
+                    for field in ["start_time", "end_time", "subject", "teacher", "room"]:
+                        setattr(db_lesson, field, lesson_data[field])
+            else:
+                session.add(Lesson(group_id=group.id, **lesson_data))
 
     async def process_all_groups(self, df: pd.DataFrame, group_columns: list[str], room_columns: dict):
-        """Обробляє всі групи паралельно та зберігає зміни у базі даних."""
+        """Обробляє всі групи та синхронізує базу повністю."""
         async with AsyncSessionLocal() as session:
+            result = await session.execute(select(Group))
+            db_groups = {g.name: g for g in result.scalars().all()}
+
+            csv_group_names = set(group_columns)
+            for name, group in db_groups.items():
+                if name not in csv_group_names:
+                    await session.delete(group)
+
             for group_name in group_columns:
                 await self.process_group(df, group_name, room_columns, session)
+
             await session.commit()
 
     async def run(self):
-        """Головний метод для оновлення розкладу з CSV у базу даних."""
+        """Головний метод для повного оновлення розкладу."""
         start_time = time.time()
         logger.info("Updating schedule...")
         df = await self.load_schedule()

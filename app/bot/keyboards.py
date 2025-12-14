@@ -7,9 +7,8 @@ from ..database.session import AsyncSessionLocal
 
 class Keyboards:
     @staticmethod
-    async def group_keyboard(active_group: str | None = None, page: int = 0,
-                             buttons_per_page: int = 20, buttons_per_row: int = 4,
-                             show_back: bool = False) -> types.InlineKeyboardMarkup:
+    async def group_keyboard(active_group: str | None = None, page: int = 0, buttons_per_page: int = 20,
+                             buttons_per_row: int = 4, mode: str = 'main') -> types.InlineKeyboardMarkup:
         """Клавіатура для вибору груп з пагінацією і кнопкою повернутися."""
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(Group.name).order_by(Group.name))
@@ -27,14 +26,14 @@ class Keyboards:
 
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(types.InlineKeyboardButton(text="⬅️ Назад", callback_data=f"page:{page-1}"))
+            nav_buttons.append(types.InlineKeyboardButton(text="⬅️ Назад", callback_data=f"page:{page - 1}:{mode}"))
         if end < len(groups):
-            nav_buttons.append(types.InlineKeyboardButton(text="➡️ Вперед", callback_data=f"page:{page+1}"))
+            nav_buttons.append(types.InlineKeyboardButton(text="➡️ Вперед", callback_data=f"page:{page + 1}:{mode}"))
         if nav_buttons:
             keyboard.row(*nav_buttons)
 
-        if show_back:
-            keyboard.row(types.InlineKeyboardButton(text="◀️ Повернутися", callback_data="settings:back"))
+        if mode == "setting":
+            keyboard.row(Keyboards.back_keyboard())
 
         return keyboard.as_markup()
 
@@ -44,19 +43,32 @@ class Keyboards:
         keyboard = InlineKeyboardBuilder()
         keyboard.button(text="🏫 Вибір групи", callback_data="settings:group")
         keyboard.button(text="📅 Тип тижня", callback_data="settings:week_type")
-        keyboard.button(text="🔔 Сповіщення", callback_data="settings:notifications")
-        keyboard.button(text="⚙️ Інші параметри", callback_data="settings:other")
+        # keyboard.button(text="🔔 Сповіщення", callback_data="settings:notifications")
+        # keyboard.button(text="⚙️ Інші параметри", callback_data="settings:other")
         if active_group:
             keyboard.row(types.InlineKeyboardButton(text="❌ Скасувати підписку", callback_data="unsubscribe"))
         keyboard.adjust(2)
         return keyboard.as_markup()
 
     @staticmethod
-    async def week_type_keyboard() -> types.InlineKeyboardMarkup:
+    async def week_type_keyboard(active_week_type: str = None) -> types.InlineKeyboardMarkup:
         """Клавіатура для вибору типу тижня."""
         keyboard = InlineKeyboardBuilder()
-        keyboard.button(text="📅 Чисельник", callback_data="week_type:numerator")
-        keyboard.button(text="📅 Знаменник", callback_data="week_type:denominator")
-        keyboard.button(text="◀️ Повернутися", callback_data="settings:back")
+
+        numerator_text = "✅ Чисельник" if active_week_type == "numerator" else "Чисельник"
+        denominator_text = "✅ Знаменник" if active_week_type == "denominator" else "Знаменник"
+
+        keyboard.button(text=numerator_text, callback_data="week_type:numerator")
+        keyboard.button(text=denominator_text, callback_data="week_type:denominator")
+
+        keyboard.row(Keyboards.back_keyboard())
         keyboard.adjust(2)
         return keyboard.as_markup()
+
+    @staticmethod
+    def back_keyboard() -> types.InlineKeyboardButton:
+        """Клавіатура для повернення."""
+        return types.InlineKeyboardButton(
+            text="◀️ Повернутися",
+            callback_data="settings:back"
+        )
