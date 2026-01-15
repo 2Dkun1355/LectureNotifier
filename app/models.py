@@ -11,7 +11,6 @@ class User(Base):
     username = Column(String, unique=True, nullable=False)
     first_name = Column(String)
     last_name = Column(String)
-    is_active = Column(Boolean, nullable=False, default=True)
     is_superuser = Column(Boolean, nullable=False, default=False)
 
     subscription = relationship("Subscription", back_populates="users")
