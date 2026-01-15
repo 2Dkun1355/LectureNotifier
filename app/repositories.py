@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 class Repository:
     def __init__(self, model, session: AsyncSession) -> None:
-        self.session = session
         self.model = model
+        self.session = session
 
     async def create(self, **kwargs) -> None:
         user = self.model(**kwargs)
