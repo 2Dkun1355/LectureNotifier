@@ -8,3 +8,4 @@ aiosqlite
 
 fastapi
 uvicorn
+pydantic
