@@ -2,7 +2,6 @@ import time
 import pandas as pd
 from loguru import logger
 from sqlalchemy.future import select
-from sqlalchemy import delete
 from ..database.models import Lesson, Group
 from ..database.session import AsyncSessionLocal
 
@@ -10,7 +9,7 @@ from ..database.session import AsyncSessionLocal
 class ScheduleParser:
     """Парсер розкладу з Google Sheets у базу даних. Повна синхронізація CSV -> БД з оптимізаціями."""
 
-    DAY_MAPPING = {"Пн": 1, "Вт": 2, "Ср": 3, "Чт": 4, "Пт": 5, "Сб": 6, "Нд": 7}
+    DAY_MAPPING = {"Пн": 0, "Вт": 1, "Ср": 2, "Чт": 3, "Пт": 4, "Сб": 5, "Нд": 6}
     LESSON_NUMBER_MAPPING = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5,
                              "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10}
     WEEK_TYPE_MAPPING = {"чис.": "numerator", "знам.": "denominator"}
@@ -59,7 +58,7 @@ class ScheduleParser:
         teacher = self.clean_value(teacher_row[group_name])
         room = self.clean_value(teacher_row[room_column]) if room_column else None
 
-        if not week_day or not lesson_number or not subject:
+        if not lesson_number or not subject:
             return None
 
         return {

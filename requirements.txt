@@ -5,3 +5,6 @@ aiogram
 apscheduler
 sqlalchemy
 aiosqlite
+
+fastapi
+uvicorn

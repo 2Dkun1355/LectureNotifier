@@ -6,29 +6,38 @@ from ..database.session import AsyncSessionLocal
 
 
 class Keyboards:
+    GROUP_OPTIONS = {
+        "buttons_per_page": 20,
+        "buttons_per_row": 4,
+    }
+
+    WEEK_MAP = {
+        "numerator": "Чисельник",
+        "denominator": "Знаменник",
+    }
+
     @staticmethod
-    async def group_keyboard(active_group: str | None = None, page: int = 0, buttons_per_page: int = 20,
-                             buttons_per_row: int = 4, mode: str = 'main') -> types.InlineKeyboardMarkup:
+    async def group_keyboard(active_group: str = None, mode: str = 'settings', page: int = 0) -> types.InlineKeyboardMarkup:
         """Клавіатура для вибору груп з пагінацією і кнопкою повернутися."""
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(Group.name).order_by(Group.name))
             groups = result.scalars().all()
 
-        start = page * buttons_per_page
-        end = start + buttons_per_page
+        start = page * Keyboards.GROUP_OPTIONS["buttons_per_page"]
+        end = start + Keyboards.GROUP_OPTIONS["buttons_per_page"]
         page_items = groups[start:end]
 
         keyboard = InlineKeyboardBuilder()
         for group_name in page_items:
             text = f"✅ {group_name}" if group_name == active_group else group_name
             keyboard.button(text=text, callback_data=f"subscribe:{group_name}")
-        keyboard.adjust(buttons_per_row)
+        keyboard.adjust(Keyboards.GROUP_OPTIONS["buttons_per_row"])
 
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(types.InlineKeyboardButton(text="⬅️ Назад", callback_data=f"page:{page - 1}:{mode}"))
+            nav_buttons.append(types.InlineKeyboardButton(text="⬅️ Назад", callback_data=f"page:{page - 1}:{mode}:{active_group}"))
         if end < len(groups):
-            nav_buttons.append(types.InlineKeyboardButton(text="➡️ Вперед", callback_data=f"page:{page + 1}:{mode}"))
+            nav_buttons.append(types.InlineKeyboardButton(text="➡️ Вперед", callback_data=f"page:{page + 1}:{mode}:{active_group}"))
         if nav_buttons:
             keyboard.row(*nav_buttons)
 
@@ -38,15 +47,14 @@ class Keyboards:
         return keyboard.as_markup()
 
     @staticmethod
-    async def settings_keyboard(active_group: str | None = None) -> types.InlineKeyboardMarkup:
+    async def settings_keyboard() -> types.InlineKeyboardMarkup:
         """Основне меню налаштувань."""
         keyboard = InlineKeyboardBuilder()
         keyboard.button(text="🏫 Вибір групи", callback_data="settings:group")
         keyboard.button(text="📅 Тип тижня", callback_data="settings:week_type")
-        # keyboard.button(text="🔔 Сповіщення", callback_data="settings:notifications")
-        # keyboard.button(text="⚙️ Інші параметри", callback_data="settings:other")
-        if active_group:
-            keyboard.row(types.InlineKeyboardButton(text="❌ Скасувати підписку", callback_data="unsubscribe"))
+        keyboard.button(text="🔔 Сповіщення", callback_data="settings:notifications")
+        keyboard.button(text="⚙️ Інші параметри", callback_data="settings:other")
+        keyboard.row(types.InlineKeyboardButton(text="❌ Скасувати підписку", callback_data="unsubscribe"))
         keyboard.adjust(2)
         return keyboard.as_markup()
 
@@ -55,11 +63,9 @@ class Keyboards:
         """Клавіатура для вибору типу тижня."""
         keyboard = InlineKeyboardBuilder()
 
-        numerator_text = "✅ Чисельник" if active_week_type == "numerator" else "Чисельник"
-        denominator_text = "✅ Знаменник" if active_week_type == "denominator" else "Знаменник"
-
-        keyboard.button(text=numerator_text, callback_data="week_type:numerator")
-        keyboard.button(text=denominator_text, callback_data="week_type:denominator")
+        for value, label in Keyboards.WEEK_MAP.items():
+            text = f"✅ {label}" if active_week_type == value else label
+            keyboard.button(text=text, callback_data=f"week_type:{value}:{label}")
 
         keyboard.row(Keyboards.back_keyboard())
         keyboard.adjust(2)
