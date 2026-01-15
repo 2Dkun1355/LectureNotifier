@@ -23,7 +23,7 @@ class Subscription(Base):
     week_type = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
 
-    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
     group = relationship("Group", back_populates="subscriptions")
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
