@@ -22,6 +22,7 @@ class Subscription(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     week_type = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
 
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
     group = relationship("Group", back_populates="subscriptions")
@@ -34,6 +35,8 @@ class Group(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, unique=True, nullable=False)
+    specialty = Column(String, nullable=True)
+    course = Column(Integer, nullable=True)
 
     subscriptions = relationship("Subscription", back_populates="group")
     lessons = relationship("Lesson", back_populates="group")
